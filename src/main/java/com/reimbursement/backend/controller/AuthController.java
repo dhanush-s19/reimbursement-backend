@@ -3,6 +3,7 @@ package com.reimbursement.backend.controller;
 import com.reimbursement.backend.dto.AuthRequest;
 import com.reimbursement.backend.dto.AuthResponse;
 import com.reimbursement.backend.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +17,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
     }

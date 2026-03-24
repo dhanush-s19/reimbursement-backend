@@ -5,6 +5,7 @@ import com.reimbursement.backend.model.Department;
 import com.reimbursement.backend.model.Role;
 import com.reimbursement.backend.service.ReimbursementService;
 import com.reimbursement.backend.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
@@ -25,13 +26,13 @@ public class HrController {
     private final ReimbursementService reimbursementService;
 
     @PostMapping
-    public ResponseEntity<AuthResponse> createUser(@RequestBody CreateUserRequest request) {
+    public ResponseEntity<AuthResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         AuthResponse response = userService.createUser(request);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserDTO> updateUser(
+    public ResponseEntity<UserDTO> updateUser(@Valid
             @PathVariable String id,
             @RequestBody UpdateUserRequest request
     ) {
@@ -42,7 +43,7 @@ public class HrController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable String id) {
         userService.deleteUser(id);
-        return ResponseEntity.noContent().build(); // 204 is better for delete
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
