@@ -152,7 +152,6 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         return ReimbursementResponse.builder()
                 .reimbursement(r)
                 .allowedNextStatuses(nextStatuses)
-                // Show amount field only when the accountant is at the final approval stage
                 .showApprovedAmountField(nextStatuses.contains(Status.ACCOUNTANT_FINAL_APPROVED))
                 .showReasonField(nextStatuses.contains(Status.HR_REJECTED) || nextStatuses.contains(Status.ACCOUNTANT_REJECTED))
                 .build();
@@ -224,8 +223,21 @@ public class ReimbursementServiceImpl implements ReimbursementService {
                 .filter(r -> r.getStatus() == Status.ACCOUNTANT_FINAL_APPROVED)
                 .mapToDouble(r -> r.getApprovedAmount() != null ? r.getApprovedAmount().doubleValue() : 0.0)
                 .sum();
+        long approvedCount = all.stream()
+                .filter(r -> r.getStatus() == Status.PAID ||
+                        r.getStatus() == Status.ACCOUNTANT_FINAL_APPROVED ||
+                        r.getStatus() == Status.HR_APPROVED)
+                .count();
+
+        long rejectedCount = all.stream()
+                .filter(r -> r.getStatus() == Status.ACCOUNTANT_REJECTED ||
+                        r.getStatus() == Status.HR_REJECTED)
+                .count();
+
+        long totalProcessed = approvedCount + rejectedCount;
+        double approvalRate = (totalProcessed > 0) ? ((double) approvedCount / totalProcessed) * 100 : 0.0;
         long pendingAction = all.stream()
-                .filter(r -> r.getStatus() == Status.SUBMITTED || r.getStatus() == Status.HR_APPROVED)
+                .filter(r -> r.getStatus() == Status.SUBMITTED || r.getStatus() == Status.FORWARDED_TO_HR)
                 .count();
 
         Map<String, Double> spendByType = new HashMap<>();
@@ -245,8 +257,10 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         return AccountantDashboardDTO.builder()
                 .totalPendingPayout(pendingPayout)
                 .pendingApprovalCount(pendingAction)
+                .approvalRate(approvalRate)
                 .spendByType(spendByType)
                 .statusDistribution(statusDist)
+                .totalDisbursedMonth(0.0)
                 .build();
     }
 
