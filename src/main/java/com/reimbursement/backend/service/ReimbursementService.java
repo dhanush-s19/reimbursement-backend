@@ -27,7 +27,6 @@ public interface ReimbursementService {
             String name,
             ReimbursementType type
     ) throws RuntimeException;
-
     Reimbursement submitTeamReimbursement(
             String title,
             Double amount,
@@ -40,7 +39,6 @@ public interface ReimbursementService {
             ReimbursementType type,
             List<MultipartFile> files
     ) throws RuntimeException;
-
     Reimbursement updateReimbursementStatus(
             String id,
             Status status,
@@ -48,6 +46,8 @@ public interface ReimbursementService {
             String processedById,
             BigDecimal approvedAmount
     ) throws RuntimeException;
+
+    Reimbursement completeCertification(String id, List<MultipartFile> files, Double finalAmount) throws RuntimeException;
     ReimbursementResponse getById(String id, String role) throws RuntimeException;
     Page<Reimbursement> getAllReimbursements(Pageable pageable);
     Page<Reimbursement> getReimbursementsByEmployeeId(String employeeId, Pageable pageable);

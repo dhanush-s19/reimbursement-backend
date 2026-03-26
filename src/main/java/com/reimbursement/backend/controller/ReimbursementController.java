@@ -53,6 +53,19 @@ public class ReimbursementController {
         return ResponseEntity.status(HttpStatus.CREATED).body(reimbursement);
     }
 
+
+
+
+    @PutMapping("/{id}/complete-certification")
+    public ResponseEntity<Reimbursement> completeCertification(
+            @PathVariable String id,
+            @RequestParam("files") List<MultipartFile> files,
+            @RequestParam("finalAmount") Double finalAmount) {
+
+        Reimbursement completed = service.completeCertification(id, files,finalAmount);
+
+        return ResponseEntity.ok(completed);
+    }
     @PostMapping("/team")
     public ResponseEntity<Reimbursement> submitTeamReimbursement(
             @RequestBody TeamReimbursementRequest request
