@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -18,7 +19,9 @@ public class Reimbursement {
     @Id
     private String id;
     private String employeeId;
+    private String managerId;
     private List<String> teamMemberIds;
+    private Integer teamSize;
     private String name;
     private String title;
     private Double amount;
@@ -35,4 +38,8 @@ public class Reimbursement {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean requiresHrApproval;
+    private boolean resubmitted;
+    private int submissionCount = 1;
+    private List<String> statusHistory;
+    private List<RejectionHistory> rejectionHistory = new ArrayList<>();
 }

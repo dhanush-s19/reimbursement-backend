@@ -24,4 +24,7 @@ public interface ReimbursementRepository extends MongoRepository<Reimbursement, 
     })
     Double sumApprovedAmountByStatus(Status status);
     long countByStatus(Status status);
+    Page<Reimbursement> findByStatusAndManagerId(Status status, String managerId, Pageable pageable);
+  ;
+
 }

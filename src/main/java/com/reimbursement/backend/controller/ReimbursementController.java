@@ -7,11 +7,11 @@ import com.reimbursement.backend.model.Status;
 import com.reimbursement.backend.service.ReimbursementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,126 +34,36 @@ public class ReimbursementController {
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "noInvoice", required = false, defaultValue = "false") boolean noInvoice,
             @RequestParam(value = "invoiceNote", required = false) String invoiceNote,
-            @RequestPart(value = "files", required = false) List<MultipartFile> files
+            @RequestParam(value = "files", required = false) List<MultipartFile> files
     ) {
         ReimbursementType reimbursementType = ReimbursementType.valueOf(type.toUpperCase());
-
-        Reimbursement reimbursement = service.submitReimbursement(
-                title,
-                amount,
-                description,
-                noInvoice,
-                invoiceNote,
-                files,
-                submittedBy,
-                name,
-                reimbursementType
-        );
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(reimbursement);
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.submitReimbursement(title, amount, description, noInvoice, invoiceNote, files, submittedBy, name, reimbursementType));
     }
 
-
-
-
-    @PutMapping("/{id}/complete-certification")
-    public ResponseEntity<Reimbursement> completeCertification(
+    @PutMapping(value = "/{id}", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Reimbursement> update(
             @PathVariable String id,
-            @RequestParam("files") List<MultipartFile> files,
-            @RequestParam("finalAmount") Double finalAmount) {
-
-        Reimbursement completed = service.completeCertification(id, files,finalAmount);
-
-        return ResponseEntity.ok(completed);
-    }
-    @PostMapping("/team")
-    public ResponseEntity<Reimbursement> submitTeamReimbursement(
-            @RequestBody TeamReimbursementRequest request
+            @RequestParam("title") String title,
+            @RequestParam("amount") Double amount,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "noInvoice", required = false, defaultValue = "false") boolean noInvoice,
+            @RequestParam(value = "invoiceNote", required = false) String invoiceNote,
+            @RequestParam(value = "existingFileUrls", required = false) List<String> existingFileUrls,
+            @RequestPart(value = "newFiles", required = false) List<MultipartFile> newFiles
     ) {
-        Reimbursement reimbursement = service.submitTeamReimbursement(
-                request.getTitle(),
-                request.getAmount(),
-                request.getDescription(),
-                request.isNoInvoice(),
-                request.getInvoiceNote(),
-                request.getSubmittedById(),
-                request.getName(),
-                request.getTeamMemberIds(),
-                request.getType(),
-                null
-        );
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(reimbursement);
+        Reimbursement updated = service.updateReimbursement(id, title, amount, description, noInvoice, invoiceNote, newFiles, existingFileUrls);
+        return ResponseEntity.ok(updated);
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Reimbursement> updateStatus(
-            @PathVariable String id,
-            @RequestBody UpdateStatusRequest request
-    ) {
-        Reimbursement updated = service.updateReimbursementStatus(
+    public ResponseEntity<Reimbursement> updateStatus(@PathVariable String id, @RequestBody UpdateStatusRequest request) {
+        return ResponseEntity.ok(service.updateStatus(
                 id,
                 request.getStatus(),
                 request.getReason(),
                 request.getProcessedById(),
                 request.getApprovedAmount()
-        );
-
-        return ResponseEntity.ok(updated);
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<ReimbursementResponse> getById(
-            @PathVariable String id,
-            @RequestParam String role
-    ) {
-        return ResponseEntity.ok(service.getById(id, role));
-    }
-
-    @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<Page<Reimbursement>> getByEmployee(
-            @PathVariable String employeeId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String direction
-    ) {
-        Pageable pageable = createPageable(page, size, sortBy, direction);
-        return ResponseEntity.ok(service.getReimbursementsByEmployeeId(employeeId, pageable));
-    }
-
-    @GetMapping("/status/{status}")
-    public ResponseEntity<Page<Reimbursement>> getByStatus(
-            @PathVariable Status status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String direction
-    ) {
-        Pageable pageable = createPageable(page, size, sortBy, direction);
-        return ResponseEntity.ok(service.getByStatus(status, pageable));
-    }
-
-    @GetMapping("/queue/hr")
-    public ResponseEntity<ReimbursementPageResponse> getHRQueue(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String direction
-    ) {
-        Pageable pageable = createPageable(page, size, sortBy, direction);
-        return ResponseEntity.ok(service.getHRQueue(pageable));
-    }
-
-    @GetMapping("/all")
-    public ResponseEntity<Page<Reimbursement>> getAll(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String direction
-    ) {
-        Pageable pageable = createPageable(page, size, sortBy, direction);
-        return ResponseEntity.ok(service.getAllReimbursements(pageable));
+        ));
     }
 
     @GetMapping("/type/{type}")
@@ -162,17 +72,93 @@ public class ReimbursementController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String direction
-    ) {
-        ReimbursementType reimbursementType;
+            @RequestParam(defaultValue = "desc") String direction) {
         try {
-            reimbursementType = ReimbursementType.valueOf(type.toUpperCase());
+            ReimbursementType reimbursementType = ReimbursementType.valueOf(type.toUpperCase());
+            Pageable pageable = createPageable(page, size, sortBy, direction);
+            return ResponseEntity.ok(service.getByType(reimbursementType, pageable));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build(); // better than throwing RuntimeException
+            return ResponseEntity.badRequest().build();
         }
+    }
 
-        Pageable pageable = createPageable(page, size, sortBy, direction);
-        return ResponseEntity.ok(service.getReimbursementsByType(reimbursementType, pageable));
+    @PutMapping(value = "/{id}/complete-certification", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Reimbursement> completeCertification(
+            @PathVariable String id,
+            @RequestParam("files") List<MultipartFile> files,
+            @RequestParam("finalAmount") Double finalAmount) {
+        return ResponseEntity.ok(service.completeCertification(id, files, finalAmount));
+    }
+
+    @PostMapping(value = "/team", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Reimbursement> submitTeamReimbursement(
+            @RequestParam("title") String title,
+            @RequestParam("amount") Double amount,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "noInvoice", required = false, defaultValue = "false") boolean noInvoice,
+            @RequestParam(value = "invoiceNote", required = false) String invoiceNote,
+            @RequestParam("submittedById") String submittedById,
+            @RequestParam("name") String name,
+            @RequestParam("type") String type,
+            @RequestParam("userRole") String userRole,
+            @RequestParam("managerId") String managerId,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+
+        try {
+            ReimbursementType reimbursementType = ReimbursementType.valueOf(type.toUpperCase());
+            Reimbursement reimbursement = service.submitTeamReimbursement(
+                    title,
+                    amount,
+                    description,
+                    noInvoice,
+                    invoiceNote,
+                    submittedById,
+                    name,
+                    reimbursementType,
+                    files,
+                    userRole,
+                    managerId
+            );
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(reimbursement);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ReimbursementResponse> getById(@PathVariable String id, @RequestParam String role) {
+        return ResponseEntity.ok(service.getById(id, role));
+    }
+
+    @GetMapping("/employee/{employeeId}")
+    public ResponseEntity<Page<Reimbursement>> getByEmployee(@PathVariable String employeeId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(defaultValue = "createdAt") String sortBy, @RequestParam(defaultValue = "desc") String direction) {
+        return ResponseEntity.ok(service.getReimbursementsByEmployeeId(employeeId, createPageable(page, size, sortBy, direction)));
+    }
+
+    @GetMapping("/status/{status}")
+    public ResponseEntity<Page<Reimbursement>> getByStatus(@PathVariable Status status, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(defaultValue = "createdAt") String sortBy, @RequestParam(defaultValue = "desc") String direction) {
+        return ResponseEntity.ok(service.getByStatus(status, createPageable(page, size, sortBy, direction)));
+    }
+
+    @GetMapping("/queue/hr")
+    public ResponseEntity<ReimbursementPageResponse> getHRQueue(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(defaultValue = "createdAt") String sortBy, @RequestParam(defaultValue = "desc") String direction) {
+        return ResponseEntity.ok(service.getHRQueue(createPageable(page, size, sortBy, direction)));
+    }
+
+    @GetMapping("/queue/manager/{managerId}")
+    public ResponseEntity<ReimbursementPageResponse> getManagerQueue(
+            @PathVariable String managerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
+        return ResponseEntity.ok(service.getManagerQueue(managerId, createPageable(page, size, sortBy, direction)));
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<Page<Reimbursement>> getAll(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(defaultValue = "createdAt") String sortBy, @RequestParam(defaultValue = "desc") String direction) {
+        return ResponseEntity.ok(service.getAllReimbursements(createPageable(page, size, sortBy, direction)));
     }
 
     @GetMapping("/accountant/stats")
@@ -180,11 +166,13 @@ public class ReimbursementController {
         return ResponseEntity.ok(service.getAccountantDashboardStats());
     }
 
-    private Pageable createPageable(int page, int size, String sortBy, String direction) {
-        Sort sort = direction.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
+    @GetMapping("/hr/stats")
+    public ResponseEntity<HrDashboardDTO> getHrStats() {
+        return ResponseEntity.ok(service.getHrDashboardStats());
+    }
 
+    private Pageable createPageable(int page, int size, String sortBy, String direction) {
+        Sort sort = direction.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         return PageRequest.of(page, size, sort);
     }
 }
