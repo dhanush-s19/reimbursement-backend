@@ -6,10 +6,7 @@ import com.reimbursement.backend.dto.AccountantDashboardDTO;
 import com.reimbursement.backend.dto.HrDashboardDTO;
 import com.reimbursement.backend.dto.ReimbursementPageResponse;
 import com.reimbursement.backend.dto.ReimbursementResponse;
-import com.reimbursement.backend.model.Reimbursement;
-import com.reimbursement.backend.model.ReimbursementType;
-import com.reimbursement.backend.model.RejectionHistory;
-import com.reimbursement.backend.model.Status;
+import com.reimbursement.backend.model.*;
 import com.reimbursement.backend.repository.ReimbursementRepository;
 import com.reimbursement.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +22,35 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 
+/**
+ * Service implementation for managing reimbursement requests in the system.
+ * 
+ * <p>This class handles the core business logic for reimbursement operations including:
+ * <ul>
+ * <li>Submission of normal, certificate, and team event reimbursements</li>
+ * <li>Status updates and approval workflows</li>
+ * <li>File upload and processing via Cloudinary</li>
+ * <li>Dashboard statistics for different user roles</li>
+ * <li>Reimbursement editing and resubmission logic</li>
+ * </ul>
+ * 
+ * <p>The service supports a multi-level approval workflow:
+ * <ul>
+ * <li>Normal reimbursements: Employee → Accountant/HR → Final Approval</li>
+ * <li>Certificate reimbursements: Employee → HR → Accountant → Final Approval</li>
+ * <li>Team events: Employee → Manager → HR → Accountant → Final Approval</li>
+ * </ul>
+ * 
+ * @author Reimbursement Management System
+ * @version 1.0
+ * @since 1.0
+ * @see ReimbursementService
+ * @see Reimbursement
+ * @see Status
+ */
 @Service
 @RequiredArgsConstructor
 public class ReimbursementServiceImpl implements ReimbursementService {
@@ -36,17 +60,31 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     private final UserRepository userRepository;
 
     /**
+     * Submits a new reimbursement request for normal reimbursements or certificates.
      *
-     * @param title
-     * @param amount
-     * @param description
-     * @param noInvoice
-     * @param invoiceNote
-     * @param files
-     * @param submittedById
-     * @param name
-     * @param type
-     * @return submission of Normal Reimbursement and Certificate
+     * <p>This method handles the initial submission of reimbursement requests. It processes
+     * file uploads, validates the submission based on type and invoice requirements, and sets
+     * the appropriate initial status based on the reimbursement type.
+     *
+     * <p>Status flow:
+     * <ul>
+     * <li>CERTIFICATE → FORWARDED_TO_HR</li>
+     * <li>NORMAL → SUBMITTED</li>
+     * </ul>
+     *
+     * @param title the title of the reimbursement request
+     * @param amount the requested reimbursement amount
+     * @param description detailed description of the reimbursement purpose
+     * @param noInvoice flag indicating whether an invoice is available
+     * @param invoiceNote explanation if no invoice is provided
+     * @param files list of supporting documents (invoices, receipts, etc.)
+     * @param submittedById the ID of the employee submitting the request
+     * @param name the name of the employee submitting the request
+     * @param type the type of reimbursement (NORMAL or CERTIFICATE)
+     * @return the created and saved Reimbursement entity
+     * @throws RuntimeException if validation fails (missing invoice for normal reimbursements)
+     * @see ReimbursementType
+     * @see Status
      */
     @Override
     public Reimbursement submitReimbursement(String title, Double amount, String description, boolean noInvoice,
@@ -76,21 +114,32 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Submits a team event reimbursement request with manager approval workflow.
      *
-     * @param title
-     * @param amount
-     * @param description
-     * @param noInvoice
-     * @param invoiceNote
-     * @param submittedById
-     * @param name
-     * @param type
-     * @param files
-     * @param userRole
-     * @param managerId
-     * @return submition of the team Reimbursement request
+     * <p>This method handles team event reimbursements that require manager approval.
+     * The initial status is determined by the submitter's role:
+     * <ul>
+     * <li>Manager submission → FORWARDED_TO_HR</li>
+     * <li>Employee submission → PENDING_MANAGER_APPROVAL</li>
+     * </ul>
+     *
+     * @param title the title of the team event reimbursement
+     * @param amount the requested reimbursement amount
+     * @param description detailed description of the team event
+     * @param noInvoice flag indicating whether an invoice is available
+     * @param invoiceNote explanation if no invoice is provided
+     * @param submittedById the ID of the employee submitting the request
+     * @param name the name of the employee submitting the request
+     * @param type the reimbursement type (should be TEAM_EVENTS)
+     * @param files list of supporting documents
+     * @param userRole the role of the submitter (MANAGER or other)
+     * @param managerName the name of the manager who will approve
+     * @param managerId the ID of the manager who will approve
+     * @return the created and saved Reimbursement entity
+     * @see ReimbursementType#TEAM_EVENTS
+     * @see Status#PENDING_MANAGER_APPROVAL
+     * @see Status#FORWARDED_TO_HR
      */
-
     @Override
     public Reimbursement submitTeamReimbursement(String title, Double amount, String description,
                                                  boolean noInvoice, String invoiceNote,
@@ -126,13 +175,23 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Updates the status of a reimbursement request with appropriate validations.
      *
-     * @param id
-     * @param nextStatus
-     * @param reason
-     * @param processedById
-     * @param approvedAmount
-     * @return status approval of the Reimbursement
+     * <p>This method handles status transitions throughout the approval workflow.
+     * It includes special validations for certain status changes:
+     * <ul>
+     * <li>ACCOUNTANT_FINAL_APPROVED requires a valid approved amount</li>
+     * <li>PAID status requires prior ACCOUNTANT_FINAL_APPROVED status</li>
+     * </ul>
+     *
+     * @param id the ID of the reimbursement to update
+     * @param nextStatus the new status to set
+     * @param reason the reason for status change (required for rejections)
+     * @param processedById the ID of the user processing the status change
+     * @param approvedAmount the final approved amount (required for final approval)
+     * @return the updated Reimbursement entity
+     * @throws RuntimeException if reimbursement not found or validation fails
+     * @see Status
      */
     @Override
     public Reimbursement updateStatus(String id, Status nextStatus, String reason, String processedById, BigDecimal approvedAmount) {
@@ -158,10 +217,20 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Determines the allowed next statuses for a reimbursement based on current status and user role.
      *
-     * @param r
-     * @param role
-     * @return Allowed next statuses for further editing
+     * <p>This private method enforces the approval workflow rules by returning only the
+     * valid status transitions for each role:
+     * <ul>
+     * <li>MANAGER: Can approve or reject PENDING_MANAGER_APPROVED requests</li>
+     * <li>HR: Can approve or reject FORWARDED_TO_HR requests</li>
+     * <li>ACCOUNTANT: Can handle SUBMITTED, HR_APPROVED, and ACCOUNTANT_FINAL_APPROVED requests</li>
+     * </ul>
+     *
+     * @param r the reimbursement entity to check
+     * @param role the user role (MANAGER, HR, or ACCOUNTANT)
+     * @return list of allowed next statuses for the given role and current status
+     * @see Status
      */
     private List<Status> getAllowedNextStatuses(Reimbursement r, String role) {
         Status current = r.getStatus();
@@ -188,10 +257,17 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Retrieves a paginated list of reimbursement requests pending manager approval.
      *
-     * @param managerId
-     * @param pageable
-     * @return Manager action required Reimbursement
+     * <p>This method returns all reimbursements with status PENDING_MANAGER_APPROVAL
+     * that are assigned to the specified manager. Each result includes the allowed
+     * actions the manager can take.
+     *
+     * @param managerId the ID of the manager whose queue is being requested
+     * @param pageable pagination information (page number, size, sorting)
+     * @return paginated response containing reimbursement requests awaiting manager action
+     * @see Status#PENDING_MANAGER_APPROVAL
+     * @see ReimbursementPageResponse
      */
     @Override
     public ReimbursementPageResponse getManagerQueue(String managerId, Pageable pageable) {
@@ -209,9 +285,16 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Retrieves a paginated list of reimbursement requests pending HR approval.
      *
-     * @param pageable
-     * @return Hr action required Reimbursements
+     * <p>This method returns all reimbursements with status FORWARDED_TO_HR
+     * that require HR verification and approval. Each result includes the allowed
+     * actions the HR user can take.
+     *
+     * @param pageable pagination information (page number, size, sorting)
+     * @return paginated response containing reimbursement requests awaiting HR action
+     * @see Status#FORWARDED_TO_HR
+     * @see ReimbursementPageResponse
      */
     @Override
     public ReimbursementPageResponse getHRQueue(Pageable pageable) {
@@ -228,9 +311,16 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Processes and uploads multiple files to Cloudinary storage.
      *
-     * @param files
-     * @return file upload links
+     * <p>This private method handles the file upload process for reimbursement
+     * supporting documents. Each file is uploaded to Cloudinary and the secure
+     * URL is returned for storage in the reimbursement entity.
+     *
+     * @param files list of multipart files to upload
+     * @return list of secure URLs from Cloudinary for the uploaded files
+     * @throws RuntimeException if any file upload fails
+     * @see Cloudinary
      */
     private List<String> processFiles(List<MultipartFile> files) {
         if (files == null || files.isEmpty()) return new ArrayList<>();
@@ -247,11 +337,20 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Validates reimbursement submission requirements based on type and invoice availability.
      *
-     * @param type
-     * @param noInvoice
-     * @param invoiceNote
-     * @param fileUrls
+     * <p>This private method enforces business rules for initial submissions:
+     * <ul>
+     * <li>CERTIFICATE and TEAM_EVENTS: No validation required</li>
+     * <li>NORMAL: Must have either invoice files or a valid invoice note</li>
+     * </ul>
+     *
+     * @param type the reimbursement type being validated
+     * @param noInvoice flag indicating whether an invoice is available
+     * @param invoiceNote explanation if no invoice is provided
+     * @param fileUrls list of uploaded file URLs
+     * @throws RuntimeException if validation requirements are not met
+     * @see ReimbursementType
      */
     private void validateInitialSubmission(ReimbursementType type, boolean noInvoice, String invoiceNote, List<String> fileUrls) {
         if (type == ReimbursementType.CERTIFICATE || type == ReimbursementType.TEAM_EVENTS) return;
@@ -266,12 +365,19 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Retrieves a reimbursement by ID with role-specific action permissions.
      *
-     * @param id
-     * @param role
-     * @return gets the reimbursement by id
+     * <p>This method returns the reimbursement details along with the allowed
+     * next statuses based on the user's role. It also determines which UI fields
+     * should be displayed (approved amount field, reason field, etc.).
+     *
+     * @param id the ID of the reimbursement to retrieve
+     * @param role the user role (MANAGER, HR, ACCOUNTANT, or EMPLOYEE)
+     * @return response containing reimbursement details and allowed actions
+     * @throws RuntimeException if reimbursement not found
+     * @see ReimbursementResponse
+     * @see Status
      */
-
     @Override
     public ReimbursementResponse getById(String id, String role) {
         Reimbursement r = repository.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
@@ -288,55 +394,122 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Generates dashboard statistics for the accountant role.
      *
-     * @return provides Accountant insightes
+     * <p>This method calculates key metrics for the accountant dashboard:
+     * <ul>
+     * <li>Total pending payout amount (final approved but not yet paid)</li>
+     * <li>Count of reimbursements pending accountant action</li>
+     * <li>Spending breakdown by reimbursement type</li>
+     * </ul>
+     *
+     * @return dashboard statistics including pending amounts and spending analytics
+     * @see AccountantDashboardDTO
+     * @see Status#ACCOUNTANT_FINAL_APPROVED
+     * @see Status#PAID
      */
     @Override
     public AccountantDashboardDTO getAccountantDashboardStats() {
         List<Reimbursement> all = repository.findAll();
         Double pendingPayout = all.stream()
                 .filter(r -> r.getStatus() == Status.ACCOUNTANT_FINAL_APPROVED)
-                .mapToDouble(r -> r.getApprovedAmount() != null ? r.getApprovedAmount().doubleValue() : 0.0).sum();
+                .mapToDouble(r -> r.getApprovedAmount() != null ? r.getApprovedAmount().doubleValue() : 0.0)
+                .sum();
 
         long pendingAction = all.stream()
-                .filter(r -> r.getStatus() == Status.SUBMITTED || r.getStatus() == Status.HR_APPROVED).count();
+                .filter(r -> r.getStatus() == Status.HR_APPROVED) // Adjusted based on standard flow
+                .count();
 
         Map<String, Double> spendByType = new HashMap<>();
         all.stream()
                 .filter(r -> r.getStatus() == Status.PAID || r.getStatus() == Status.ACCOUNTANT_FINAL_APPROVED)
                 .forEach(r -> {
                     String type = r.getType().name();
-                    Double amt = r.getApprovedAmount() != null ? r.getApprovedAmount().doubleValue() : r.getAmount();
+                    Double amt = r.getApprovedAmount() != null ? r.getApprovedAmount().doubleValue() : r.getAmount().doubleValue();
                     spendByType.put(type, spendByType.getOrDefault(type, 0.0) + amt);
                 });
+
+        Map<String, Long> statusDistribution = all.stream()
+                .collect(Collectors.groupingBy(
+                        r -> r.getStatus().name(),
+                        Collectors.counting()
+                ));
+        long totalRequests = all.size();
+        long approvedRequests = all.stream()
+                .filter(r -> r.getStatus() == Status.PAID ||
+                        r.getStatus() == Status.ACCOUNTANT_FINAL_APPROVED ||
+                        r.getStatus() == Status.HR_APPROVED)
+                .count();
+
+        Double approvalRate = totalRequests > 0 ? ((double) approvedRequests / totalRequests) * 100 : 0.0;
         return AccountantDashboardDTO.builder()
                 .totalPendingPayout(pendingPayout)
                 .pendingApprovalCount(pendingAction)
                 .spendByType(spendByType)
+                .statusDistribution(statusDistribution)
+                .approvalRate(approvalRate)
                 .build();
     }
 
     /**
+     * Generates dashboard statistics for the HR role.
      *
-     * @return returns HR insightes
+     * <p>This method calculates key metrics for the HR dashboard:
+     * <ul>
+     * <li>Count of reimbursements pending HR verification</li>
+     * <li>Total number of employees in the system</li>
+     * </ul>
+     *
+     * @return dashboard statistics including pending HR verification count
+     * @see HrDashboardDTO
+     * @see Status#FORWARDED_TO_HR
      */
     @Override
     public HrDashboardDTO getHrDashboardStats() {
-        long pendingHr = repository.findAll().stream().filter(r -> r.getStatus() == Status.FORWARDED_TO_HR).count();
-        return HrDashboardDTO.builder().pendingHrVerificationCount(pendingHr).totalEmployees(userRepository.count()).build();
+        long pendingHr = repository.countByStatus(Status.FORWARDED_TO_HR);
+        long totalEmployees = userRepository.count();
+        Map<String, Long> pendingByType = repository.countPendingByType()
+                .stream()
+                .collect(Collectors.toMap(
+                        TypeCountAggregation::_id,
+                        TypeCountAggregation::count
+                ));
+
+        return HrDashboardDTO.builder()
+                .pendingHrVerificationCount(pendingHr)
+                .totalEmployees(totalEmployees)
+                .pendingByType(pendingByType)
+                .build();
     }
 
     /**
+     * Updates an existing reimbursement request with new details and handles resubmission logic.
      *
-     * @param id
-     * @param title
-     * @param amount
-     * @param description
-     * @param noInvoice
-     * @param invoiceNote
-     * @param newFiles
-     * @param existingFileUrls
-     * @return updated the reimbursement status and handles resubmition logic
+     * <p>This method allows editing of reimbursements in specific statuses:
+     * <ul>
+     * <li>Initial submission statuses (SUBMITTED, PENDING_MANAGER_APPROVAL)</li>
+     * <li>Rejected statuses (with resubmission limit of 1)</li>
+     * </ul>
+     *
+     * <p>For rejected reimbursements, it:
+     * <ul>
+     * <li>Saves the rejection history</li>
+     * <li>Resets the status based on reimbursement type</li>
+     * <li>Increments the submission count</li>
+     * </ul>
+     *
+     * @param id the ID of the reimbursement to update
+     * @param title the updated title
+     * @param amount the updated amount
+     * @param description the updated description
+     * @param noInvoice updated invoice availability flag
+     * @param invoiceNote updated invoice note
+     * @param newFiles new files to upload
+     * @param existingFileUrls URLs of existing files to keep
+     * @return the updated Reimbursement entity
+     * @throws RuntimeException if editing not allowed or resubmission limit exceeded
+     * @see RejectionHistory
+     * @see Status
      */
     @Override
     public Reimbursement updateReimbursement(String id, String title, Double amount, String description,
@@ -395,11 +568,20 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Completes a certificate reimbursement by adding final documents and amount.
      *
-     * @param id
-     * @param files
-     * @param finalAmount
-     * @return 
+     * <p>This method is used after HR approval to finalize certificate reimbursements.
+     * It allows uploading the completion documents and setting the final amount,
+     * then moves the reimbursement to SUBMITTED status for accountant processing.
+     *
+     * @param id the ID of the certificate reimbursement to complete
+     * @param files list of completion documents (certificates, etc.)
+     * @param finalAmount the final amount after completion
+     * @return the updated Reimbursement entity
+     * @throws RuntimeException if reimbursement not found or not HR approved
+     * @see Status#HR_APPROVED
+     * @see Status#SUBMITTED
+     * @see ReimbursementType#CERTIFICATE
      */
     @Override
     public Reimbursement completeCertification(String id, List<MultipartFile> files, Double finalAmount) {
@@ -416,10 +598,16 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     /**
+     * Retrieves all reimbursements with pagination support.
      *
-     * @param id
-     * @param p
-     * @return gives all reimbursement by employeeID
+     * <p>This method provides access to all reimbursement records in the system
+     * with pagination for efficient data retrieval. Typically used by admin users
+     * or for system-wide reporting.
+     *
+     * @param p pagination parameters (page number, size, sorting)
+     * @return paginated list of all reimbursements
+     * @see Page
+     * @see Pageable
      */
     public Page<Reimbursement> getReimbursementsByEmployeeId(String id, Pageable p) {
         return repository.findAllByEmployeeId(id, p);
@@ -427,10 +615,16 @@ public class ReimbursementServiceImpl implements ReimbursementService {
 
 
     /**
+     * Retrieves all reimbursements submitted by a specific employee.
      *
-     * @param s
-     * @param p
-     * @return gets reimbursement by status
+     * <p>This method returns all reimbursement requests associated with a particular
+     * employee ID, useful for employee dashboards and personal reimbursement history.
+     *
+     * @param id the employee ID whose reimbursements are being requested
+     * @param p pagination parameters (page number, size, sorting)
+     * @return paginated list of reimbursements for the specified employee
+     * @see Page
+     * @see Pageable
      */
     public Page<Reimbursement> getByStatus(Status s, Pageable p) {
         return repository.findByStatus(s, p);
@@ -438,10 +632,17 @@ public class ReimbursementServiceImpl implements ReimbursementService {
 
 
     /**
+     * Retrieves all reimbursements with a specific status.
      *
-     * @param t
-     * @param p
-     * @return finds reimbursement by type (Certificate, Team, Normal)
+     * <p>This method filters reimbursements by their current status, useful for
+     * generating reports and monitoring workflow stages.
+     *
+     * @param s the status to filter by
+     * @param p pagination parameters (page number, size, sorting)
+     * @return paginated list of reimbursements with the specified status
+     * @see Status
+     * @see Page
+     * @see Pageable
      */
     public Page<Reimbursement> getByType(ReimbursementType t, Pageable p) {
         return repository.findByType(t, p);

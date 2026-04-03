@@ -3,6 +3,7 @@ package com.reimbursement.backend.repository;
 import com.reimbursement.backend.model.Reimbursement;
 import com.reimbursement.backend.model.ReimbursementType;
 import com.reimbursement.backend.model.Status;
+import com.reimbursement.backend.model.TypeCountAggregation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.Aggregation;
@@ -112,6 +113,27 @@ public interface ReimbursementRepository extends MongoRepository<Reimbursement, 
      * @return a page of reimbursement requests matching the status and manager criteria
      */
     Page<Reimbursement> findByStatusAndManagerId(Status status, String managerId, Pageable pageable);
-  ;
 
+    /**
+     * Counts pending reimbursement requests grouped by type.
+     *
+     * <p>This method uses MongoDB aggregation to count all reimbursement requests
+     * that have been forwarded to HR (status: FORWARDED_TO_HR) and groups them
+     * by their reimbursement type. The result provides a breakdown of how many
+     * pending requests exist for each reimbursement type.</p>
+     *
+     * <p>The aggregation pipeline performs two operations:
+     * <ol>
+     *   <li>Match: Filters documents with status 'FORWARDED_TO_HR'</li>
+     *   <li>Group: Groups by the 'type' field and counts documents in each group</li>
+     * </ol></p>
+     *
+     * @return a list of TypeCountAggregation objects containing the count of
+     *         pending reimbursement requests for each type
+     */
+    @Aggregation(pipeline = {
+            "{ $match: { status: 'FORWARDED_TO_HR' } }",
+            "{ $group: { _id: '$type', count: { $sum: 1 } } }"
+    })
+    List<TypeCountAggregation> countPendingByType();
 }

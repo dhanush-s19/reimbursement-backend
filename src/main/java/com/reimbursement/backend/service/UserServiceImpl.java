@@ -15,6 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
+/**
+ * Service implementation for managing user operations in the reimbursement system.
+ * Provides CRUD operations, authentication, and role-based user management functionality.
+ */
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -24,9 +28,12 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
 
     /**
+     * Creates a new user account with authentication token.
+     * Validates that email and employee ID are unique before creation.
      *
-     * @param request
-     * @return creates User
+     * @param request the user creation request containing user details
+     * @return AuthResponse containing user information and JWT token
+     * @throws RuntimeException if email or employee ID already exists
      */
     @Override
     public AuthResponse createUser(CreateUserRequest request) {
@@ -57,10 +64,13 @@ public class UserServiceImpl implements UserService {
 
 
     /**
+     * Updates an existing user's information.
+     * Validates email and employee ID uniqueness if they are being changed.
      *
-     * @param id
-     * @param request
-     * @return updates User
+     * @param id the user ID to update
+     * @param request the update request containing new user details
+     * @return UserDTO with updated user information
+     * @throws RuntimeException if user not found, or email/employee ID already in use
      */
     @Override
     @Transactional
@@ -99,12 +109,12 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
+     * Updates a user's password after validating the current password.
      *
-     * @param id
-     * @param request
-     * Changes Password
+     * @param id the user ID whose password to update
+     * @param request containing old and new password
+     * @throws RuntimeException if user not found or current password is incorrect
      */
-
     @Override
     @Transactional
     public void updatePassword(String id, UpdatePasswordRequestDTO request) {
@@ -117,11 +127,23 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
+    /**
+     * Deletes a user by their ID.
+     *
+     * @param id the user ID to delete
+     */
     @Override
     public void deleteUser(String id) {
         userRepository.deleteById(id);
     }
 
+    /**
+     * Retrieves a user by their ID.
+     *
+     * @param id the user ID to retrieve
+     * @return UserDTO containing user information
+     * @throws RuntimeException if user not found
+     */
     @Override
     public UserDTO getUserById(String id) {
         User user = userRepository.findById(id)
@@ -129,6 +151,15 @@ public class UserServiceImpl implements UserService {
         return mapToDTO(user);
     }
 
+    /**
+     * Retrieves users with optional filtering by role and department.
+     * Returns paginated results based on the provided filters.
+     *
+     * @param role optional role filter (can be null)
+     * @param department optional department filter (can be null)
+     * @param pageable pagination information
+     * @return Page<UserDTO> containing filtered and paginated users
+     */
     @Override
     public Page<UserDTO> getUsers(Role role, Department department, Pageable pageable) {
         Page<User> usersPage;
@@ -144,6 +175,12 @@ public class UserServiceImpl implements UserService {
         return usersPage.map(this::mapToDTO);
     }
 
+    /**
+     * Searches for users by name (case-insensitive partial match).
+     *
+     * @param name the name or partial name to search for
+     * @return List<UserDTO> of users matching the search criteria
+     */
     @Override
     public List<UserDTO> searchUsers(String name) {
         return userRepository.findAll()
@@ -153,6 +190,13 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
+    /**
+     * Retrieves employees with pagination (10 users per page).
+     * Results are ordered by ID in ascending order.
+     *
+     * @param page the page number (0-based)
+     * @return List<UserDTO> of employees
+     */
     @Override
     public List<UserDTO> getEmployees(int page) {
         Pageable pageable = PageRequest.of(page, 10);
@@ -162,6 +206,13 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
+    /**
+     * Retrieves accountants with pagination (10 users per page).
+     * Results are ordered by name in ascending order.
+     *
+     * @param page the page number (0-based)
+     * @return List<UserDTO> of accountants
+     */
     @Override
     public List<UserDTO> getAccountants(int page) {
         Pageable pageable = PageRequest.of(page, 10);
@@ -171,6 +222,13 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
+    /**
+     * Retrieves HR users with pagination (10 users per page).
+     * Results are ordered by name in ascending order.
+     *
+     * @param page the page number (0-based)
+     * @return List<UserDTO> of HR users
+     */
     @Override
     public List<UserDTO> getHRUsers(int page) {
         Pageable pageable = PageRequest.of(page, 10);
@@ -180,6 +238,13 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
+    /**
+     * Retrieves managers with pagination (10 users per page).
+     * Results are ordered by name in ascending order.
+     *
+     * @param page the page number (0-based)
+     * @return List<UserDTO> of managers
+     */
     @Override
     public List<UserDTO> getManagers(int page) {
         Pageable pageable = PageRequest.of(page, 10);
@@ -189,6 +254,13 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
+    /**
+     * Maps a User entity to a UserDTO for API responses.
+     * Excludes sensitive information like passwords.
+     *
+     * @param user the User entity to map
+     * @return UserDTO containing user information
+     */
     private UserDTO mapToDTO(User user) {
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
