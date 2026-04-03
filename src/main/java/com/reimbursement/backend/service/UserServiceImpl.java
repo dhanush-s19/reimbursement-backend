@@ -22,6 +22,12 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
+
+    /**
+     *
+     * @param request
+     * @return creates User
+     */
     @Override
     public AuthResponse createUser(CreateUserRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -49,6 +55,13 @@ public class UserServiceImpl implements UserService {
         );
     }
 
+
+    /**
+     *
+     * @param id
+     * @param request
+     * @return updates User
+     */
     @Override
     @Transactional
     public UserDTO updateUser(String id, UpdateUserRequest request) {
@@ -84,6 +97,13 @@ public class UserServiceImpl implements UserService {
         User updatedUser = userRepository.save(user);
         return mapToDTO(updatedUser);
     }
+
+    /**
+     *
+     * @param id
+     * @param request
+     * Changes Password
+     */
 
     @Override
     @Transactional

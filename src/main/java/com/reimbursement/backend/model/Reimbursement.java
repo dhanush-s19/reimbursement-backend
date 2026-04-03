@@ -9,6 +9,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+
+/**
+ * Represents a reimbursement request in the system.
+ * This entity stores comprehensive information about employee reimbursement requests,
+ * including financial details, approval workflow status, supporting documents,
+ * and audit trail information.
+ *
+ **/
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -20,7 +28,7 @@ public class Reimbursement {
     private String id;
     private String employeeId;
     private String managerId;
-    private List<String> teamMemberIds;
+    private String managerName;
     private Integer teamSize;
     private String name;
     private String title;
@@ -39,7 +47,9 @@ public class Reimbursement {
     private LocalDateTime updatedAt;
     private boolean requiresHrApproval;
     private boolean resubmitted;
+    @Builder.Default
     private int submissionCount = 1;
     private List<String> statusHistory;
+    @Builder.Default
     private List<RejectionHistory> rejectionHistory = new ArrayList<>();
 }

@@ -9,6 +9,9 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+/**
+ * User Service
+ */
 public interface UserService {
 
     AuthResponse createUser(CreateUserRequest request);

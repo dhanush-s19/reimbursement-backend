@@ -35,6 +35,19 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     private final Cloudinary cloudinary;
     private final UserRepository userRepository;
 
+    /**
+     *
+     * @param title
+     * @param amount
+     * @param description
+     * @param noInvoice
+     * @param invoiceNote
+     * @param files
+     * @param submittedById
+     * @param name
+     * @param type
+     * @return submission of Normal Reimbursement and Certificate
+     */
     @Override
     public Reimbursement submitReimbursement(String title, Double amount, String description, boolean noInvoice,
                                              String invoiceNote, List<MultipartFile> files,
@@ -62,12 +75,28 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         return repository.save(reimbursement);
     }
 
+    /**
+     *
+     * @param title
+     * @param amount
+     * @param description
+     * @param noInvoice
+     * @param invoiceNote
+     * @param submittedById
+     * @param name
+     * @param type
+     * @param files
+     * @param userRole
+     * @param managerId
+     * @return submition of the team Reimbursement request
+     */
+
     @Override
     public Reimbursement submitTeamReimbursement(String title, Double amount, String description,
                                                  boolean noInvoice, String invoiceNote,
                                                  String submittedById, String name,
                                                  ReimbursementType type,
-                                                 List<MultipartFile> files, String userRole,
+                                                 List<MultipartFile> files, String userRole,String managerName,
                                                  String managerId) {
 
 
@@ -90,11 +119,21 @@ public class ReimbursementServiceImpl implements ReimbursementService {
                 .fileUrls(processFiles(files))
                 .invoiceNote(invoiceNote)
                 .noInvoice(noInvoice)
+                .managerName(managerName)
                 .build();
 
         return repository.save(reimbursement);
     }
 
+    /**
+     *
+     * @param id
+     * @param nextStatus
+     * @param reason
+     * @param processedById
+     * @param approvedAmount
+     * @return status approval of the Reimbursement
+     */
     @Override
     public Reimbursement updateStatus(String id, Status nextStatus, String reason, String processedById, BigDecimal approvedAmount) {
         Reimbursement r = repository.findById(id)
@@ -118,6 +157,12 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         return repository.save(r);
     }
 
+    /**
+     *
+     * @param r
+     * @param role
+     * @return Allowed next statuses for further editing
+     */
     private List<Status> getAllowedNextStatuses(Reimbursement r, String role) {
         Status current = r.getStatus();
         List<Status> allowed = new ArrayList<>();
@@ -142,6 +187,12 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         return allowed;
     }
 
+    /**
+     *
+     * @param managerId
+     * @param pageable
+     * @return Manager action required Reimbursement
+     */
     @Override
     public ReimbursementPageResponse getManagerQueue(String managerId, Pageable pageable) {
         Page<Reimbursement> page = repository.findByStatusAndManagerId(Status.PENDING_MANAGER_APPROVAL, managerId, pageable);
@@ -157,6 +208,11 @@ public class ReimbursementServiceImpl implements ReimbursementService {
                 .build();
     }
 
+    /**
+     *
+     * @param pageable
+     * @return Hr action required Reimbursements
+     */
     @Override
     public ReimbursementPageResponse getHRQueue(Pageable pageable) {
         Page<Reimbursement> page = repository.findByStatus(Status.FORWARDED_TO_HR, pageable);
@@ -171,7 +227,11 @@ public class ReimbursementServiceImpl implements ReimbursementService {
                 .build();
     }
 
-
+    /**
+     *
+     * @param files
+     * @return file upload links
+     */
     private List<String> processFiles(List<MultipartFile> files) {
         if (files == null || files.isEmpty()) return new ArrayList<>();
         List<String> urls = new ArrayList<>();
@@ -186,6 +246,13 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         return urls;
     }
 
+    /**
+     *
+     * @param type
+     * @param noInvoice
+     * @param invoiceNote
+     * @param fileUrls
+     */
     private void validateInitialSubmission(ReimbursementType type, boolean noInvoice, String invoiceNote, List<String> fileUrls) {
         if (type == ReimbursementType.CERTIFICATE || type == ReimbursementType.TEAM_EVENTS) return;
         if (type == ReimbursementType.NORMAL) {
@@ -197,6 +264,13 @@ public class ReimbursementServiceImpl implements ReimbursementService {
             }
         }
     }
+
+    /**
+     *
+     * @param id
+     * @param role
+     * @return gets the reimbursement by id
+     */
 
     @Override
     public ReimbursementResponse getById(String id, String role) {
@@ -213,6 +287,10 @@ public class ReimbursementServiceImpl implements ReimbursementService {
                 .build();
     }
 
+    /**
+     *
+     * @return provides Accountant insightes
+     */
     @Override
     public AccountantDashboardDTO getAccountantDashboardStats() {
         List<Reimbursement> all = repository.findAll();
@@ -238,12 +316,28 @@ public class ReimbursementServiceImpl implements ReimbursementService {
                 .build();
     }
 
+    /**
+     *
+     * @return returns HR insightes
+     */
     @Override
     public HrDashboardDTO getHrDashboardStats() {
         long pendingHr = repository.findAll().stream().filter(r -> r.getStatus() == Status.FORWARDED_TO_HR).count();
         return HrDashboardDTO.builder().pendingHrVerificationCount(pendingHr).totalEmployees(userRepository.count()).build();
     }
 
+    /**
+     *
+     * @param id
+     * @param title
+     * @param amount
+     * @param description
+     * @param noInvoice
+     * @param invoiceNote
+     * @param newFiles
+     * @param existingFileUrls
+     * @return updated the reimbursement status and handles resubmition logic
+     */
     @Override
     public Reimbursement updateReimbursement(String id, String title, Double amount, String description,
                                              boolean noInvoice, String invoiceNote,

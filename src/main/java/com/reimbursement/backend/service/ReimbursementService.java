@@ -15,17 +15,19 @@ public interface ReimbursementService {
                                       String invoiceNote, List<MultipartFile> files, String submittedById,
                                       String name, ReimbursementType type);
 
+
     public Reimbursement submitTeamReimbursement(String title, Double amount, String description,
                                                  boolean noInvoice, String invoiceNote,
                                                  String submittedById, String name,
                                                  ReimbursementType type,
-                                                 List<MultipartFile> files, String userRole,
+                                                 List<MultipartFile> files, String userRole,String managerName,
                                                  String managerId);
-
 
     public Reimbursement updateReimbursement(String id, String title, Double amount, String description,
                                              boolean noInvoice, String invoiceNote,
                                              List<MultipartFile> newFiles, List<String> existingFileUrls);
+
+
 
 
     Reimbursement updateStatus(String id, Status nextStatus, String reason, String processedById, BigDecimal approvedAmount);
