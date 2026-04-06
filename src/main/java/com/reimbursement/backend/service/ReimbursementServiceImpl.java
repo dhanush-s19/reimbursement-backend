@@ -417,7 +417,8 @@ public class ReimbursementServiceImpl implements ReimbursementService {
                 .sum();
 
         long pendingAction = all.stream()
-                .filter(r -> r.getStatus() == Status.HR_APPROVED) // Adjusted based on standard flow
+                .filter(r -> r.getStatus() == Status.SUBMITTED ||
+                        r.getStatus() == Status.HR_APPROVED)
                 .count();
 
         Map<String, Double> spendByType = new HashMap<>();
