@@ -5,6 +5,8 @@ import com.reimbursement.backend.model.Reimbursement;
 import com.reimbursement.backend.model.ReimbursementType;
 import com.reimbursement.backend.model.Status;
 import com.reimbursement.backend.service.ReimbursementService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +32,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/reimbursements")
 @RequiredArgsConstructor
+@Tag(name = "Reimbursement Management", description = "Endpoints for Reimbursement Management")
 public class ReimbursementController {
 
     private final ReimbursementService service;
@@ -50,6 +53,7 @@ public class ReimbursementController {
      * @return ResponseEntity containing the created Reimbursement object with HTTP status 201
      * @throws IllegalArgumentException if the reimbursement type is invalid
      */
+    @Operation(summary = "Submit a new reimbursement request", description = "Submits a new reimbursement request with optional file attachments.")
     @PostMapping(value = "/submit", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Reimbursement> submit(
             @RequestParam("title") String title,
@@ -85,6 +89,7 @@ public class ReimbursementController {
      * @return ResponseEntity containing the created Reimbursement object with HTTP status 201,
      *         or HTTP 400 if the reimbursement type is invalid
      */
+    @Operation(summary = "Submit a team reimbursement request", description = "Submits a team reimbursement request on behalf of another employee.")
     @PostMapping(value = "/team", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Reimbursement> submitTeamReimbursement(
             @RequestParam("title") String title,
@@ -137,6 +142,7 @@ public class ReimbursementController {
      * @param newFiles Optional list of new files to upload
      * @return ResponseEntity containing the updated Reimbursement object
      */
+    @Operation(summary = "Update an existing reimbursement request", description = "Updates an existing reimbursement request with new details and optional file attachments.")
     @PutMapping(value = "/{id}", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Reimbursement> update(
             @PathVariable String id,
@@ -160,6 +166,7 @@ public class ReimbursementController {
      * @param request The status update request containing new status, reason, processor ID, and approved amount
      * @return ResponseEntity containing the updated Reimbursement object
      */
+    @Operation(summary = "Update the status of a reimbursement request", description = "Updates the status of a reimbursement request with optional reason and approved amount.")
     @PutMapping("/{id}/status")
     public ResponseEntity<Reimbursement> updateStatus(@PathVariable String id, @RequestBody UpdateStatusRequest request) {
         return ResponseEntity.ok(service.updateStatus(
@@ -183,6 +190,7 @@ public class ReimbursementController {
      * @return ResponseEntity containing a Page of Reimbursement objects filtered by type,
      *         or HTTP 400 if the reimbursement type is invalid
      */
+    @Operation(summary = "Get reimbursements by type", description = "Retrieves reimbursements filtered by type with pagination and sorting options.")
     @GetMapping("/type/{type}")
     public ResponseEntity<Page<Reimbursement>> getByType(
             @PathVariable String type,
@@ -208,6 +216,7 @@ public class ReimbursementController {
      * @param finalAmount The final approved amount after certification
      * @return ResponseEntity containing the updated Reimbursement object with completed certification
      */
+    @Operation(summary = "Complete certification for a reimbursement", description = "Completes the certification process for a reimbursement by uploading certification documents and setting the final approved amount.")
     @PutMapping(value = "/{id}/complete-certification", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Reimbursement> completeCertification(
             @PathVariable String id,
@@ -224,6 +233,7 @@ public class ReimbursementController {
      * @param role The role of the user making the request (affects data visibility)
      * @return ResponseEntity containing the ReimbursementResponse object with role-appropriate data
      */
+    @Operation(summary = "Get a specific reimbursement by ID", description = "Retrieves a specific reimbursement by ID with role-based access control.")
     @GetMapping("/{id}")
     public ResponseEntity<ReimbursementResponse> getById(@PathVariable String id, @RequestParam String role) {
         return ResponseEntity.ok(service.getById(id, role));
@@ -240,6 +250,7 @@ public class ReimbursementController {
      * @param direction The sort direction - "asc" or "desc" (default: "desc")
      * @return ResponseEntity containing a Page of Reimbursement objects for the specified employee
      */
+    @Operation(summary = "Get reimbursements by employee", description = "Retrieves reimbursements submitted by a specific employee with pagination and sorting.")
     @GetMapping("/employee/{employeeId}")
     public ResponseEntity<Page<Reimbursement>> getByEmployee(@PathVariable String employeeId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(defaultValue = "createdAt") String sortBy, @RequestParam(defaultValue = "desc") String direction) {
         return ResponseEntity.ok(service.getReimbursementsByEmployeeId(employeeId, createPageable(page, size, sortBy, direction)));
@@ -256,6 +267,7 @@ public class ReimbursementController {
      * @param direction The sort direction - "asc" or "desc" (default: "desc")
      * @return ResponseEntity containing a Page of Reimbursement objects filtered by status
      */
+    @Operation(summary = "Get reimbursements by status", description = "Retrieves reimbursements filtered by their current status with pagination and sorting.")
     @GetMapping("/status/{status}")
     public ResponseEntity<Page<Reimbursement>> getByStatus(@PathVariable Status status, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(defaultValue = "createdAt") String sortBy, @RequestParam(defaultValue = "desc") String direction) {
         return ResponseEntity.ok(service.getByStatus(status, createPageable(page, size, sortBy, direction)));
@@ -271,6 +283,7 @@ public class ReimbursementController {
      * @param direction The sort direction - "asc" or "desc" (default: "desc")
      * @return ResponseEntity containing ReimbursementPageResponse with HR queue data
      */
+    @Operation(summary = "Get HR queue", description = "Retrieves the HR dashboard queue showing reimbursements requiring HR attention.")
     @GetMapping("/queue/hr")
     public ResponseEntity<ReimbursementPageResponse> getHRQueue(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(defaultValue = "createdAt") String sortBy, @RequestParam(defaultValue = "desc") String direction) {
         return ResponseEntity.ok(service.getHRQueue(createPageable(page, size, sortBy, direction)));
@@ -287,6 +300,7 @@ public class ReimbursementController {
      * @param direction The sort direction - "asc" or "desc" (default: "desc")
      * @return ResponseEntity containing ReimbursementPageResponse with manager queue data
      */
+    @Operation(summary = "Get manager queue", description = "Retrieves the manager queue showing reimbursements forwarded to a specific manager for approval.")
     @GetMapping("/queue/manager/{managerId}")
     public ResponseEntity<ReimbursementPageResponse> getManagerQueue(
             @PathVariable String managerId,
@@ -307,6 +321,7 @@ public class ReimbursementController {
      * @param direction The sort direction - "asc" or "desc" (default: "desc")
      * @return ResponseEntity containing a Page of all Reimbursement objects
      */
+    @Operation(summary = "Get all reimbursements", description = "Retrieves all reimbursements in the system with pagination and sorting.")
     @GetMapping("/all")
     public ResponseEntity<Page<Reimbursement>> getAll(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @RequestParam(defaultValue = "createdAt") String sortBy, @RequestParam(defaultValue = "desc") String direction) {
         return ResponseEntity.ok(service.getAllReimbursements(createPageable(page, size, sortBy, direction)));
@@ -318,6 +333,7 @@ public class ReimbursementController {
      *
      * @return ResponseEntity containing AccountantDashboardDTO with accountant-specific statistics
      */
+    @Operation(summary = "Get accountant statistics", description = "Retrieves dashboard statistics for the accountant role.")
     @GetMapping("/accountant/stats")
     public ResponseEntity<AccountantDashboardDTO> getAccountantStats() {
         return ResponseEntity.ok(service.getAccountantDashboardStats());
@@ -329,6 +345,7 @@ public class ReimbursementController {
      *
      * @return ResponseEntity containing HrDashboardDTO with HR-specific statistics
      */
+    @Operation(summary = "Get HR statistics", description = "Retrieves dashboard statistics for the HR role.")
     @GetMapping("/hr/stats")
     public ResponseEntity<HrDashboardDTO> getHrStats() {
         return ResponseEntity.ok(service.getHrDashboardStats());
@@ -344,6 +361,7 @@ public class ReimbursementController {
      * @param direction The sort direction ("asc" or "desc")
      * @return Pageable object configured with the specified pagination and sorting parameters
      */
+    @Operation(summary = "Create pageable", description = "Creates a Pageable object for pagination and sorting operations.")
     private Pageable createPageable(int page, int size, String sortBy, String direction) {
         Sort sort = direction.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         return PageRequest.of(page, size, sort);
