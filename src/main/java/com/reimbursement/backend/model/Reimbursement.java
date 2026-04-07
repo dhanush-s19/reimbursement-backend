@@ -35,8 +35,6 @@ public class Reimbursement {
     private String managerId;
     @Schema(description = "The name of the manager assigned to the reimbursement request.")
     private String managerName;
-    @Schema(description = "The team size of the employee submitting the reimbursement request.")
-    private Integer teamSize;
     @Schema(description = "The name of the employee submitting the reimbursement request.")
     private String name;
     @Schema(description = "The title of the employee submitting the reimbursement request.")
