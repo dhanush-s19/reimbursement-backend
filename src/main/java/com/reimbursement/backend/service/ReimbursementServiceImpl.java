@@ -520,6 +520,9 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         Reimbursement r = repository.findById(id).orElseThrow(() -> new RuntimeException("Reimbursement not found"));
 
         boolean wasRejected = r.getStatus().name().contains("REJECTED");
+        if (wasRejected && r.getType() == ReimbursementType.CERTIFICATE) {
+            throw new RuntimeException("Certificate reimbursements cannot be resubmitted once rejected.");
+        }
         if (wasRejected && r.getSubmissionCount() >= 1) {
             throw new RuntimeException("Maximum resubmission limit reached. This claim cannot be edited again.");
         }
