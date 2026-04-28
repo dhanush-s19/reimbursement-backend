@@ -30,3 +30,7 @@ springdoc:
     path: /api-docs
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
+
+mongock:
+  migration-scan-package:
+    - com.reimbursement.backend.migration
